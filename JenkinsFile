@@ -1,0 +1,76 @@
+pipeline {
+    agent any
+
+
+    tools {
+        
+        maven "maven3"
+    	}//TOOLS
+
+    stages {
+        stage('CodeCheckOut') {
+            steps {
+                withCredentials([string(credentialsId: 'github', variable: 'github')]) {
+    git branch: 'main', url: 'https://github.com/devopsenggr/cicd.git'
+}
+                  }
+
+                              }//Stage('CodeCheckOut')
+	stage('SonarQube'){
+		steps{
+			echo 'scanning project'
+			sh'ls -ltr'
+			sh ''' mvn sonar:sonar \\
+				-Dsonar.host.url=http://3.108.193.124:9000\\
+				-Dsonar.login=squ_420a6eb202a5faa364ea658743ab2513216bfcea'''
+			}	
+			}//stage('SonarQube')
+	stage('Build'){
+		steps{
+			sh "mvn clean package"
+			}	
+			}//stage('Build')
+	
+	stage('Dockerize'){
+		steps{ echo 'Docker image building'
+			sh "docker build -t awsd43/cicdrepo:${BUILD_NUMBER} ."
+			}	
+			}//stage('dOCKERIZE')
+			
+	stage('Push to Dockerhub'){
+		steps{ 
+			script {
+			withCredentials([string(credentialsId: 'dockerhub', variable: 'dockerhub')]) {
+    				sh 'docker login -u awsd43 -p ${dockerhub}'
+			}
+			//echo 'Docker image building'
+			sh "docker push awsd43/cicdrepo:${BUILD_NUMBER}"
+			echo 'Pushed to dockerhub'
+			}	
+			}//script
+			}//stage('Push to dockerhub')
+			stage('Update Deployment File'){
+		
+		environment {
+				GIT_REPO_NAME = "cicd"
+				GIT_USER_NAME = "devopsenggr"
+			}
+			steps{
+			withCredentials([string(credentialsId: 'github', variable: 'github')]) {
+			sh '''
+			git config user.email "awstraining42@gmail.com"
+			git config user.name "devopsenggr"
+			BUILD_NUMBER=${BUILD_NUMBER}
+			sed -i "s/cicd:.*/cicd:${BUILD_NUMBER}/g" deploymentfiles/deployment.yml
+			git add .
+			git commit -m "update deployemnt image to version no ${BUILD_NUMBER}"
+			git push https://${github}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}
+			
+			'''
+            }
+			}	
+			}//stage('Update  dep file')
+	
+	
+	        }//stages closing
+}//pipeline closing
