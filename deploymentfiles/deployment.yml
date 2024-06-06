@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: mc-app
-        image: awsd43/cicdrepo:73
+        image: awsd43/cicdrepo:75
         ports:
         - containerPort: 8080
 
